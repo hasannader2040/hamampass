@@ -1,24 +1,24 @@
-name: Nodejs Github action
+name: Nodejs Github Action
 
 on:
   push:
-    branches: [mean]
+    branches: [main]
 
-  on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-  Jobs:
-    build:
-      runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      steps:
-      - uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 16
-      - name: use Node
-#      - run: npm ci
-
 
       - name: Install dependencies
         run: npm install
-      -name: Run test
-      run: npm test
+
+      - name: Run tests
+        run: npm test
