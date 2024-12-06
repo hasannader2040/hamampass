@@ -1,24 +1,87 @@
-name: Nodejs Github Action
+name: CI/CD Pipeline for Hamampass
 
 on:
   push:
-    branches: [main]
-
+    branches:
+      - main
 jobs:
-  build:
+  lint:
+    name: Lint Code
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 16
-
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm install
 
-      - name: Run tests
-        run: npm test
+      - name: Run Lint
+        run: npm run lint
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Tests
+        run: npm test -- --passWithNoTests
+
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker Image
+        run: |
+          docker build -t hamampass:latest .
+          docker tag hamampass:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/hamampass:latest
+
+  docker-push:
+    name: Push Docker Image to ECR
+    needs: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push Image to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/hamampass:latest
+
+#  deploy-beanstalk:
+#    name: Deploy to AWS Elastic Beanstalk
+#    needs: docker-push
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout Code
+#        uses: actions/checkout@v3
+#
+#      - name: Deploy to Elastic Beanstalk
+#        run: |
+#          eb init hamampass --platform docker --region ${{ secrets.AWS_REGION }}
+#          eb deploy
+#
+#  deploy-fargate:
+#    name: Deploy to AWS Fargate
+#    needs: docker-push
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Deploy to Fargate using ECS
+#        run: |
+#          aws ecs create-cluster --cluster-name hamampass
+#          aws ecs create-service \
+#            --cluster hamampass \
+#            --service-name hamampass-service \
+#            --task-definition ${{ secrets.TASK_DEFINITION_ARN }}
